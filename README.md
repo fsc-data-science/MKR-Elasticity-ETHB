@@ -7,6 +7,8 @@ The project plan is available for review [here](https://github.com/fsc-data-scie
 The broad goal is to develop a methodology for assessing the Elasticity of on-chain interactions with contracts, using MakerDAO's 
 ETH Vault B ("ETH Low Ratio") as the introductory Example.
 
+# Research Plan 
+
 To summarize the project plan, we will develop a research piece integrating and testing the following hypotheses:
 
 - The market reacts to ETHB's fees relative to other competitor fees.
@@ -19,6 +21,7 @@ To summarize the project plan, we will develop a research piece integrating and 
   
 Overall, we'd like to adjust for available confounding factors and develop an Elasticity Curve that is useful to the MakerDAO ETH B committee that studies the market to adjust the vault parameters to support MakerDAO's efficiency and revenue growth.
 
+# Outputs
 
 For a deeper dive into the context, you can check out the report on our [research site](https://science.flipsidecrypto.xyz/research/) once it is completed. (URL TBD).
 
