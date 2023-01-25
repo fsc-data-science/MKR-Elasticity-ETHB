@@ -1,28 +1,28 @@
 # MKR-Elasticity-ETHB
 
- An Elasticity Analysis of MKR ETH-B "ETH Low Ratio"
+An (in progress) Elasticity Analysis of MKR ETH-B "ETH Low Ratio".
 
-# Template 
-For any reproducible analysis using this template please follow the provided format.
+The project plan is available for review [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/blob/main/MKR%20Elasticity%20ETHB%20-%20Project%20Plan.md).
 
-1.  2-3 sentence summary of the analysis.
-2.  Link to both the general research site & specific report on that research site. A markdown example is provided to show how to link using `[]()` syntax. Details on how to update the research site are available [at its repo](https://github.com/FlipsideCrypto/research).
+The broad goal is to develop a methodology for assessing the Elasticity of on-chain interactions with contracts, using MakerDAO's 
+ETH Vault B ("ETH Low Ratio") as the introductory Example.
 
-`For a deeper dive into the context, you can check out the report on our [research site](https://science.flipsidecrypto.xyz/research/) at [bonk-post-mortem](https://science.flipsidecrypto.xyz/bonk-post-mortem/).`
+To summarize the project plan, we will develop a research piece integrating and testing the following hypotheses:
 
-3.  Link to the email sized version of the analysis on the flipside beehiiv. A markdown example is provided showing how to use the `[]()` syntax and identify the beehiiv site. To add content to the beehiiv site, please contact the beehiiv admin to get added as an org member.
+- The market reacts to ETHB's fees relative to other competitor fees.
+  - AAVE ETH deposited and USDC & DAI borrows are correlated with changes to ETHB's parameters and participation in ETH B Vaults correlate with changes to its competitors.
 
-`If you aren't interested in code and want the shortest summary of the situation, you can check out the email sized [bonk-post-mortem](https://flipsidecrypto.beehiiv.com/p/bonk-post-mortem) on our research beehiiv and subscribe to get (summaries of) the best crypto research direct to your inbox.`
+- When ETH GAS is more expensive, people generate *less* DAI from the ETH B, all else equal.
 
-4.  Keep the Reproduce Analysis section (confirm links work) with the shroomDK and renv subheaders. Confirm your analysis is reproducible by using renv and that any SQL code you used to pull data is provided and accessible via shroomDK. For Python analysis use `pyenv` and `pip install shroomdk` and swap out any R details for Python ones.
+- When ETH's USD price is short-term "over-priced" (went up disproportionately quicky fast), ETH B use declines. 
+  - People go to the cheaper vaults and/or withdraw or reduce leverage to sell high and rebuy low.
+  
+Overall, we'd like to adjust for available confounding factors and develop an Elasticity Curve that is useful to the MakerDAO ETH B committee that studies the market to adjust the vault parameters to support MakerDAO's efficiency and revenue growth.
 
-5.  Update the instructions section.
 
--   To keep code bases uniform, please use `readLines('api_key.txt')` to access your api key within code and ensure gitignore files are consistently able to keep API Keys off github.
+For a deeper dive into the context, you can check out the report on our [research site](https://science.flipsidecrypto.xyz/research/) once it is completed. (URL TBD).
 
--   Use R Projects & renv to ensure portability across directories and operating systems.
-
--   For analysis across multiple files; either provide a single .Rmd file that accesses those files in order or explicitly detail what order .R files should be run in.
+If you aren't interested in code and want the shortest summary of the situation, you can check out the email sized version of this research on our research [beehiiv](https://flipsidecrypto.beehiiv.com) once it is complete. For now, you can subscribe to get (summaries of) the best crypto research direct to your inbox. for past and parallel research pieces.
 
 # Reproduce Analysis
 
@@ -46,9 +46,9 @@ To replicate this analysis please do the following:
 
 1.  Clone this repo.
 2.  Save your API key into a .txt file as 'api_key.txt' (this exact naming allows the provided .gitignore to ignore your key and keep it off github).
-3.  Open the `R PROJECT NAME HERE` R Project file in your R IDE (we recommend, RStudio).
+3.  Open the `MKR-Elasticity-ETHB` R Project file in your R IDE (we recommend, RStudio).
 4.  Confirm you have renv installed.
-5.  Restore the R environment using `renv::restore()` while in the `R PROJECT NAME HERE` R Project.
-6.  You can now run `SPECIFY .R FILE(s) and/or .Rmd FILE(s) HERE`
+5.  Restore the R environment using `renv::restore()` while in the `MKR-Elasticity-ETHB` R Project.
+6.  You can now run the variety of analysis files (TBD).
 
 If any errors arise, double check you have saved your API key in the expected file name and format.
