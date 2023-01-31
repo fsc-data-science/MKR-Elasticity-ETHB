@@ -11,8 +11,8 @@ ETH Vault B ("ETH Low Ratio") as the introductory Example.
 
 To summarize the project plan, we will develop a research piece integrating and testing the following hypotheses:
 
-- The market reacts to ETHB's fees relative to other competitor fees.
-  - AAVE ETH deposited and USDC & DAI borrows are correlated with changes to ETHB's parameters and participation in ETH B Vaults correlate with changes to its competitors.
+- The market reacts to changes in ETHB's stability fee. 
+  - Participation in ETH B Vaults (Dai minted from new and existing vaults) is reactive to changes in the cost of minting Dai from those vaults (i.e., the stability fee).
 
 - When ETH GAS is more expensive, people generate *less* DAI from the ETH B, all else equal.
 
