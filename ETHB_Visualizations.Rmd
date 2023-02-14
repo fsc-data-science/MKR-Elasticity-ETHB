@@ -1082,7 +1082,7 @@ plot_ly() %>%
    layout(
     xaxis = list(title = "Date"),
     yaxis = list(title = "Daily Implied Revenue (# DAI)"), 
-    title = list(text = paste0("Implied Revenue & ETH Price \n",
+    title = list(text = paste0("Implied Revenue & ETH RSI \n",
                                "Correlation: ", 
                                round(rev_ethrsi_correlation, 3)), y = 0.975)) %>% 
   add_trace(x = fee_changes$TIMESTAMP_date, 
