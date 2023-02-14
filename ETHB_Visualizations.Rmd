@@ -1,0 +1,913 @@
+---
+title: "MKR-ETHB-Visualizations"
+author: "Charliemarketplace"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    css: "styles.css"
+    includes:
+      in_header: header.html
+    code_folding: hide
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+# Intro 
+
+This report details the exploratory data analysis of Key ETH-B Collateral Type 
+Vault interactions by users of the Maker Protocol used to inspire & review the 
+final MKR ETH-B Elasticity report.
+
+```{r, message=FALSE, warning=FALSE}
+library(reactable)
+library(plotly)
+library(dplyr)
+library(lubridate)
+```
+
+# Data 
+
+Key data includes: 
+
+- known parameter changes to the ETH-B vault: 
+    - JUG.ilks.duty: vault stability fee
+    - DOG.ilks.chop: liquidation fee
+    - DOG.ilks.hole: liquidation parameter
+    - VAT.ilks.dust:	Minimum vault size for # of DAI able to be minted
+- Vault Interactions
+    - Vaults created with ETH-B as the Collateral type (`ilk`)
+    - ETH Deposits to ETH-B Vaults
+    - DAI Mints (borrows) via ETH-B Vaults
+    - DAI Repayments to ETH-B Vaults
+    - ETH Withdrawals from ETH-B Vaults
+    - DAI/ETH Liquidations of ETH-B Vaults
+- Macro Factors
+    - Changes to ETH's Price, specifically its Relative Strength Index (RSI)
+    - Demand for ETH's blockspace, i.e., gas (in gwei).
+
+
+```{r}
+parameter_changes <- read.csv("ETHB-Parameter-Changes.csv", row.names = NULL)
+
+ethb_vault_creations <- read.csv("ethb_vault_creations.csv", 
+                                 colClasses = "character", row.names = NULL)
+ethb_vault_deposits <- read.csv("ethb_vault_deposits.csv", 
+                                colClasses = "character", row.names = NULL)
+ethb_dai_borrows <- read.csv("ethb_dai_borrows.csv", 
+                             colClasses = "character", row.names = NULL)
+ethb_dai_repayments <- read.csv("ethb_dai_repayments.csv",
+                                colClasses = "character", row.names = NULL)
+ethb_vault_withdrawals <- read.csv("ethb_vault_withdrawals.csv",
+                                   colClasses = "character", row.names = NULL)
+ethb_vault_liquidations <- read.csv("ethb_vault_liquidations.csv",
+                                    colClasses = "character", row.names = NULL)
+
+```
+
+# ETH-B History
+
+```{r}
+fee_changes <- parameter_changes[parameter_changes$PARAMETER == 'JUG.ilks.duty', c("BLOCK","TIMESTAMP", "FROM_VALUE","TO_VALUE")]
+
+fee_changes$direction <- factor(fee_changes$TO_VALUE > fee_changes$FROM_VALUE, 
+                                levels = c(TRUE, FALSE),
+                                labels = c("UP","DOWN"))
+
+
+```
+
+ETH-B was initiated on `r fee_changes$TIMESTAMP[1]` with a stability fee of `r fee_changes$TO_VALUE[1]`.
+
+There have been a total of `r nrow(fee_changes) - 1` fee changes from the initial fee as of the 
+analysis cutoff at Ethereum mainnet block 16,400,000 (2023-01-13).
+
+A total of `r nrow(ethb_vault_creations)` vaults were created over this time period.
+
+## Stability Fee Overlay
+
+```{r}
+reactable(fee_changes, defaultPageSize = 15)
+
+# for better plotting
+
+fee_changes$TIMESTAMP_posixct <- as.POSIXct(fee_changes$TIMESTAMP, tz = "UTC")
+fee_changes$TIMESTAMP_date <- as.Date(fee_changes$TIMESTAMP, tz = "UTC")
+
+
+# for better plotting
+parameter_changes$TIMESTAMP_posixct <- as.POSIXct(parameter_changes$TIMESTAMP, tz = "UTC")
+parameter_changes$TIMESTAMP_date <- as.Date(parameter_changes$TIMESTAMP, tz = "UTC")
+
+debt_changes <- parameter_changes[parameter_changes$PARAMETER %in% 
+                                    c('DC-IAM.ilks.line','VAT.ilks.line'), ]
+
+
+plot_ly() %>% add_trace(data = fee_changes,
+                        x = ~TIMESTAMP_date, 
+                        y = ~TO_VALUE, 
+            line = list(shape = 'hv'), # stepwise changes
+         text = paste('Block: ', fee_changes$BLOCK,
+                        '<br>Timestamp: ', fee_changes$TIMESTAMP_posixct,
+                        '<br>From: ',fee_changes$FROM_VALUE,
+                        'To: ', fee_changes$TO_VALUE),
+         hoverinfo = 'text',
+        type = "scatter", mode = "markers+lines") %>% 
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Stability Fee"), 
+    title = list(text = "Historical Changes to ETH-B Stability Fee", y = 0.975)
+  )
+
+
+```
+
+## Creations
+
+```{r}
+daily_vaults <- ethb_vault_creations[, c("BLOCK_NUMBER", "BLOCK_TIMESTAMP", "VAULT_NUMBER")]
+daily_vaults$day <- as.Date(daily_vaults$BLOCK_TIMESTAMP, tz = "UTC")
+daily_vaults <- daily_vaults %>% group_by(day) %>% summarise(num_vaults = n())
+
+plot_ly() %>% add_trace(data = daily_vaults,
+                        x = ~day, 
+                        y = ~num_vaults, 
+         text = paste('Date: ', daily_vaults$day,
+                        '<br># ETH-B Vaults:', daily_vaults$num_vaults),
+         hoverinfo = 'text',
+        type = "scatter", mode = "markers+lines", name = 'New Vaults') %>% 
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# Vaults"), 
+    title = list(text = "Daily ETH-B Vaults Created", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+
+## Deposits
+
+```{r}
+daily_deposits <- ethb_vault_deposits[ , c("BLOCK_NUMBER","BLOCK_TIMESTAMP", "DEPOSIT_AMOUNT_ADJ")]
+
+daily_deposits$day <- as.Date(daily_deposits$BLOCK_TIMESTAMP, tz = 'UTC')
+
+daily_deposits <- daily_deposits %>% group_by(day) %>% 
+  summarise(num_deposits = n(), 
+            sum_eth = sum(as.numeric(DEPOSIT_AMOUNT_ADJ)))
+
+
+monthly_deposits <- daily_deposits %>% 
+  mutate(yearmonth = substr(day, 0, 7)) %>% 
+  mutate(yearmonth = factor(yearmonth, 
+                            levels = unique(yearmonth))) %>% 
+  group_by(yearmonth) %>% 
+   summarise(num_deposits = sum(num_deposits), 
+            sum_eth = sum(as.numeric(sum_eth))) 
+
+```
+
+### Daily: # Deposits 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = daily_deposits, 
+  x = ~day, 
+  y = ~num_deposits,
+  size = ~sum_eth,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by ETH Amount") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of Deposits"), 
+    title = list(text = "Daily ETH-B Vaults Deposits", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+### Daily: # ETH  
+
+```{r}
+plot_ly() %>% add_trace(
+  data = daily_deposits, 
+  x = ~day, 
+  y = ~sum_eth,
+  size = ~num_deposits,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by # Deposits") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# ETH Deposited"), 
+    title = list(text = "Daily ETH-B Vaults ETH Deposited", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+  
+```
+
+
+### Monthly: # Deposits 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = monthly_deposits, 
+  x = ~yearmonth, 
+  y = ~num_deposits,
+  color = ~sum_eth,
+  textposition = "none",
+  text = paste('Date: ', monthly_deposits$yearmonth,
+               '<br># Deposits: ',monthly_deposits$num_deposits,
+               '<br>ETH Deposited: ', format(floor(monthly_deposits$sum_eth), big.mark = ",")),
+  hoverinfo = 'text',
+  type = "bar",
+  name = "# Deposits") %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))  %>% 
+  layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# Deposits"), 
+    title = list(text = "Monthly ETH-B Vaults # Deposits", y = 0.975)) %>% 
+  colorbar(title = list(text = "# ETH"))
+
+
+```
+
+### Monthly: # ETH  
+
+```{r, warning=FALSE, message=FALSE}
+plot_ly() %>% add_trace(
+  data = monthly_deposits, 
+  x = ~yearmonth, 
+  y = ~sum_eth,
+  color = ~num_deposits,
+  type = "bar", 
+   textposition = "none",
+  text = paste('Date: ', monthly_deposits$yearmonth,
+               '<br># Deposits: ',monthly_deposits$num_deposits,
+               '<br>ETH Deposited: ', format(floor(monthly_deposits$sum_eth), big.mark = ",")),
+  hoverinfo = 'text',
+  name = "ETH Deposited") %>% 
+   layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# ETH Deposited"), 
+    title = list(text = "Monthly ETH-B Vaults ETH Deposited", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+    colorbar(title = list(text = "# Deposits"))
+
+```
+
+## Mints
+
+```{r}
+daily_mints <- ethb_dai_borrows[, c("BLOCK_NUMBER","BLOCK_TIMESTAMP", "DAI_MINTED")]
+
+daily_mints$day <- as.Date(daily_mints$BLOCK_TIMESTAMP, tz = 'UTC')
+
+daily_mints <- daily_mints %>% group_by(day) %>% 
+  summarise(num_mints = n(), 
+            sum_dai = sum(as.numeric(DAI_MINTED)))
+
+monthly_mints <- daily_mints %>% 
+  mutate(yearmonth = substr(day, 0, 7)) %>% 
+  mutate(yearmonth = factor(yearmonth, 
+                            levels = unique(yearmonth))) %>% 
+  group_by(yearmonth) %>% 
+   summarise(num_mints = sum(num_mints), 
+            sum_dai = sum(as.numeric(sum_dai))) 
+
+
+```
+
+## Daily: # Mints
+
+```{r}
+
+plot_ly() %>% add_trace(
+  data = daily_mints, 
+  x = ~day, 
+  y = ~num_mints,
+  size = ~sum_dai,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by DAI Amount") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of Mints"), 
+    title = list(text = "Daily ETH-B Vault # of Mints", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+## Daily: # DAI
+
+```{r}
+
+plot_ly() %>% add_trace(
+  data = daily_mints, 
+  x = ~day, 
+  y = ~sum_dai,
+  size = ~num_mints,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by # Mints") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Dai Minted"), 
+    title = list(text = "Daily ETH-B Vault Amount Dai Minted", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*1e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+### Monthly: # Mints 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = monthly_mints, 
+  x = ~yearmonth, 
+  y = ~num_mints,
+  color = ~sum_dai,
+  textposition = "none",
+  text = paste('Date: ', monthly_mints$yearmonth,
+               '<br># Mints: ',monthly_mints$num_mints,
+               '<br>Dai Minted: ', format(floor(monthly_mints$sum_dai), big.mark = ",")),
+  hoverinfo = 'text',
+  type = "bar",
+  name = "# Mints") %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000*10,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))  %>% 
+  layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# Mints"), 
+    title = list(text = "Monthly ETH-B Vaults # Mints", y = 0.975)) %>% 
+  colorbar(title = list(text = "# DAI"))
+
+
+```
+
+### Monthly: # DAI  
+
+```{r, warning=FALSE, message=FALSE}
+plot_ly() %>% add_trace(
+  data = monthly_mints, 
+  x = ~yearmonth, 
+  y = ~sum_dai,
+  color = ~num_mints,
+  type = "bar", 
+   textposition = "none",
+  text = paste('Date: ', monthly_mints$yearmonth,
+               '<br># mints: ',monthly_mints$num_mints,
+               '<br>DAI Minted: ', format(floor(monthly_mints$sum_dai), big.mark = ",")),
+  hoverinfo = 'text',
+  name = "DAI Minted") %>% 
+   layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# DAI Minted"), 
+    title = list(text = "Monthly ETH-B Vaults DAI Minted", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+    colorbar(title = list(text = "# Mints"))
+
+```
+
+## Repayments 
+
+```{r}
+daily_repays <- ethb_dai_repayments[, c("BLOCK_NUMBER","BLOCK_TIMESTAMP", "DAI_REPAYED")]
+
+daily_repays$day <- as.Date(daily_repays$BLOCK_TIMESTAMP, tz = 'UTC')
+
+daily_repays <- daily_repays %>% group_by(day) %>% 
+  summarise(num_repays = n(), 
+            sum_dai = sum(as.numeric(DAI_REPAYED)))
+
+monthly_repays <- daily_repays %>% 
+  mutate(yearmonth = substr(day, 0, 7)) %>% 
+  mutate(yearmonth = factor(yearmonth, 
+                            levels = unique(yearmonth))) %>% 
+  group_by(yearmonth) %>% 
+   summarise(num_repays = sum(num_repays), 
+            sum_dai = sum(as.numeric(sum_dai))) 
+
+
+```
+
+## Daily: # Repays
+
+```{r}
+
+plot_ly() %>% add_trace(
+  data = daily_repays, 
+  x = ~day, 
+  y = ~num_repays,
+  size = ~sum_dai,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by DAI Amount") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of Repays"), 
+    title = list(text = "Daily ETH-B Vault # of Repays", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+## Daily: # DAI
+
+```{r}
+
+plot_ly() %>% add_trace(
+  data = daily_repays, 
+  x = ~day, 
+  y = ~sum_dai,
+  size = ~num_repays,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by # Repays") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Dai Repayed"), 
+    title = list(text = "Daily ETH-B Vault Amount Dai Repaid", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*1e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+
+### Monthly: # Repays 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = monthly_repays, 
+  x = ~yearmonth, 
+  y = ~num_repays,
+  color = ~sum_dai,
+  textposition = "none",
+  text = paste('Date: ', monthly_repays$yearmonth,
+               '<br># repays: ',monthly_repays$num_repays,
+               '<br>Dai Repaid: ', format(floor(monthly_repays$sum_dai), big.mark = ",")),
+  hoverinfo = 'text',
+  type = "bar",
+  name = "# Repays") %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000*10,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))  %>% 
+  layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# Repays"), 
+    title = list(text = "Monthly ETH-B Vaults # Repays", y = 0.975)) %>% 
+  colorbar(title = list(text = "# DAI"))
+
+
+```
+
+### Monthly: # DAI  
+
+```{r, warning=FALSE, message=FALSE}
+plot_ly() %>% add_trace(
+  data = monthly_repays, 
+  x = ~yearmonth, 
+  y = ~sum_dai,
+  color = ~num_repays,
+  type = "bar", 
+   textposition = "none",
+  text = paste('Date: ', monthly_repays$yearmonth,
+               '<br># Repays: ',monthly_repays$num_repays,
+               '<br>DAI Repaid: ', format(floor(monthly_repays$sum_dai), big.mark = ",")),
+  hoverinfo = 'text',
+  name = "DAI Repaid") %>% 
+   layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# DAI Repaid"), 
+    title = list(text = "Monthly ETH-B Vaults DAI Repaid", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+    colorbar(title = list(text = "# Repays"))
+
+```
+
+
+## Withdrawals 
+
+
+```{r}
+daily_withdraws <- ethb_vault_withdrawals[ , c("BLOCK_NUMBER","BLOCK_TIMESTAMP", "WITHDRAWN_AMOUNT_ADJ")]
+
+daily_withdraws$day <- as.Date(daily_withdraws$BLOCK_TIMESTAMP, tz = 'UTC')
+
+daily_withdraws <- daily_withdraws %>% group_by(day) %>% 
+  summarise(num_withdraws = n(), 
+            sum_eth = sum(as.numeric(WITHDRAWN_AMOUNT_ADJ)))
+
+
+monthly_withdraws <- daily_withdraws %>% 
+  mutate(yearmonth = substr(day, 0, 7)) %>% 
+  mutate(yearmonth = factor(yearmonth, 
+                            levels = unique(yearmonth))) %>% 
+  group_by(yearmonth) %>% 
+   summarise(num_withdraws = sum(num_withdraws), 
+            sum_eth = sum(as.numeric(sum_eth))) 
+
+```
+
+
+### Daily: # Withdrawals 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = daily_withdraws, 
+  x = ~day, 
+  y = ~num_withdraws,
+  size = ~sum_eth,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by ETH Amount") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of Withdrawals"), 
+    title = list(text = "Daily ETH-B Vaults Withdrawals", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+### Daily: # ETH  
+
+```{r}
+plot_ly() %>% add_trace(
+  data = daily_withdraws, 
+  x = ~day, 
+  y = ~sum_eth,
+  size = ~num_withdraws,
+  type = "scatter",
+  mode = "markers", 
+  name = "Sized by # Withdrawals") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# ETH Withdrawn"), 
+    title = list(text = "Daily ETH-B Vaults ETH Withdrawn", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+  
+```
+
+
+### Monthly: # Withdrawals 
+
+```{r}
+plot_ly() %>% add_trace(
+  data = monthly_withdraws, 
+  x = ~yearmonth, 
+  y = ~num_withdraws,
+  color = ~sum_eth,
+  textposition = "none",
+  text = paste('Date: ', monthly_withdraws$yearmonth,
+               '<br># withdraws: ',monthly_withdraws$num_withdraws,
+               '<br>ETH Withdrawn: ', format(floor(monthly_withdraws$sum_eth), big.mark = ",")),
+  hoverinfo = 'text',
+  type = "bar",
+  name = "# Withdraws") %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*10000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee %', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))  %>% 
+  layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# Withdraws"), 
+    title = list(text = "Monthly ETH-B Vaults # Withdraws", y = 0.975)) %>% 
+  colorbar(title = list(text = "# ETH"))
+
+
+```
+
+### Monthly: # ETH  
+
+```{r, warning=FALSE, message=FALSE}
+plot_ly() %>% add_trace(
+  data = monthly_withdraws, 
+  x = ~yearmonth, 
+  y = ~sum_eth,
+  color = ~num_withdraws,
+  type = "bar", 
+   textposition = "none",
+  text = paste('Date: ', monthly_withdraws$yearmonth,
+               '<br># Withdraws: ',monthly_withdraws$num_withdraws,
+               '<br>ETH Withdrawn: ', format(floor(monthly_withdraws$sum_eth), big.mark = ",")),
+  hoverinfo = 'text',
+  name = "ETH Withdrawn") %>% 
+   layout(
+    xaxis = list(title = "Month", range = c("2020-09-01",'2023-02-01')),
+    yaxis = list(title = "# ETH Withdrawals"), 
+    title = list(text = "Monthly ETH-B Vaults ETH Withdrawn", y = 0.975)) %>% 
+    add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*1000000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+    colorbar(title = list(text = "# Withdrawals"))
+
+```
+
+## Liquidations 
+
+```{r}
+daily_liqs <- ethb_vault_liquidations[ , 
+                                       c("BLOCK_TIMESTAMP",
+                                         "VAULT_NUMBER",
+                                         "DEBT_TO_COVER_AMOUNT",
+                                         "COLLATERAL_LIQUIDATED_AMOUNT",
+                                         "DAI_REPAYED_AMOUNT")]
+
+daily_liqs$day <- as.Date(daily_liqs$BLOCK_TIMESTAMP, tz = 'UTC')
+
+daily_liqs <- daily_liqs %>% group_by(day) %>% 
+  summarise(num_liqs = n(), 
+            sum_eth = sum(as.numeric(COLLATERAL_LIQUIDATED_AMOUNT)),
+            sum_debt = sum(as.numeric(DEBT_TO_COVER_AMOUNT)),
+            sum_dai = sum(as.numeric(DAI_REPAYED_AMOUNT)),
+            )
+
+monthly_liqs <- daily_liqs %>% 
+  mutate(yearmonth = substr(day, 0, 7)) %>% 
+  mutate(yearmonth = factor(yearmonth, 
+                            levels = unique(yearmonth))) %>% 
+  group_by(yearmonth) %>% 
+   summarise(num_liqs = sum(num_liqs), 
+            sum_eth = sum(as.numeric(sum_eth))) 
+
+
+```
+
+Liquidations will not be thoroughly analyzed as the vast majority of liquidations are of a 
+single large vault: # 21348, which had 363 distinct liquidations in chunks. But they 
+will be included as ETH withdrawn and DAI debt covered for calculating DAI outstanding.
+
+# Key Metrics 
+
+## DAI oustanding over time vs Debt Limit
+
+- DAI Outstanding: DAI mints - DAI repays - Dai liquidation debt covered
+- Debt Ceiling Parameter: `VAT.ilks.line` - automatic increases in allowed debt for vault 
+up to the governance imposed Max.
+- Debt Max Limit Parameter: `DC-IAM.ilks.line` - governance imposed true maximum debt, 
+can be approached slowly automatically by increasing the ceiling.
+
+
+The key context to note is that from Jan 2021 to June 2021, the ETH-B Ceiling had completely
+maxxed out, requiring all mints of DAI to be offset by recent repayments of DAI. Causing a 
+significant decrease in activity to ETH-B Vaults as the amount of DAI available to be minted 
+was reduced. 
+
+After June 2021, Maker governance dramatically increased the DC-IAM Max Debt Limit 
+and since then, automatic increases in the Ceiling (even in high-volatility) had 
+plenty of room to allow additional dai minting.
+
+```{r}
+
+plot_ly() %>% add_trace(data = debt_changes,
+                        x = ~TIMESTAMP_date, 
+                        y = ~TO_VALUE, 
+                        color = ~PARAMETER,
+            line = list(shape = 'hv'), # stepwise changes
+         text = paste('Block: ', debt_changes$BLOCK,
+                        '<br>Timestamp: ', debt_changes$TIMESTAMP_posixct,
+                        '<br>From: ',debt_changes$FROM_VALUE,
+                        'To: ', debt_changes$TO_VALUE),
+         hoverinfo = 'text',
+        type = "scatter", mode = "markers+lines") %>% 
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Debt Limit"), 
+    title = list(text = "Historical Changes to ETH-B Debt Ceiling & Limit", y = 0.975)
+  ) %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*10e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+
+```{r}
+daily_mints$dai_minted <- daily_mints$sum_dai
+daily_repays$dai_repaid <- daily_repays$sum_dai
+
+# FULL Join 
+mint_repay <- merge(daily_mints[, c("day","dai_minted")], 
+      daily_repays[, c("day","dai_repaid")], by = 'day', 
+      all.x = TRUE, all.y = TRUE)
+
+dai_outstanding <- merge(mint_repay,  daily_liqs[, c("day", "sum_debt")], 
+                         by = "day", all.x = TRUE, all.y = TRUE)
+
+
+# if nothing happened, impute 0 
+dai_outstanding[is.na(dai_outstanding)] <- 0
+
+# Dai Delta = change in dai outstanding attributable to vault
+# Dai Outstanding = cumulative sum of deltas 
+dai_outstanding <- dai_outstanding %>% 
+  mutate(dai_delta = dai_minted - dai_repaid - sum_debt) %>% 
+  mutate(dai_outstanding = cumsum(dai_delta))
+  
+```
+
+The Debt Ceiling, while under the Debt Limit, is flexible to the utilization 
+of the ETHB Vault. It is stable in low volatility periods, but spikes in ETHB's utilization, 
+(e.g., a large DAI mint) can directly cause or even include in its transaction a change to the ceiling.
+
+```{r}
+plot_ly() %>% 
+  add_trace(data = dai_outstanding, x = ~day, y = ~dai_outstanding, 
+            type = "scatter", mode = "markers+lines", name = "ETHB: Dai Outstanding") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of DAI"), 
+    title = list(text = "Net DAI in circulation from ETHB", y = 0.975)) %>% 
+  add_trace(data = debt_changes,
+                        x = ~TIMESTAMP_date,
+                        y = ~TO_VALUE, 
+                        color = ~PARAMETER,
+            line = list(shape = 'hv'), # stepwise changes
+         text = paste('Block: ', debt_changes$BLOCK,
+                        '<br>Timestamp: ', debt_changes$TIMESTAMP_posixct,
+                        '<br>From: ',debt_changes$FROM_VALUE,
+                        'To: ', debt_changes$TO_VALUE),
+         hoverinfo = 'text',
+        type = "scatter", mode = "markers+lines") %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*10e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+## Implied Revenue over time
+
+- Implied Revenue = DAI Outstanding * Stability Fee 
+
+```{r}
+
+
+```
+
+
+# Macro Factors 
+
+## ETH Price & RSI (Time Level)
+
+## ETH Gas (weighted avg gwei)
+
+# Metrics vs Factors 
+
+## DAI outstanding versus ETH Price
+
+## DAI outstanding versus ETH RSI 
+
+## Implied Revenue versus ETH Price
+
+## Implied Revenue versus ETH RSI
+
+# Next Steps 
+
+In the Elasticity report, a deeper analysis will be done to develop an elasticity
+curve for how decisions within Maker's control (i.e., the stability fee) affect 
+the desired outcome (Implied Revenue) after adjusting for external factors (i.e., ETH's price & RSI)
+to ultimately provide a defined data-driven methodology to support key decision making within MakerDAO.
+
+
