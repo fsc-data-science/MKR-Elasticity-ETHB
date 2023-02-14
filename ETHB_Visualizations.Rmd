@@ -27,9 +27,12 @@ final MKR ETH-B Elasticity report.
 
 ```{r, message=FALSE, warning=FALSE}
 library(reactable)
+library(TTR) # RSI
+library(zoo) # fill NAs
 library(plotly)
 library(dplyr)
 library(lubridate)
+
 ```
 
 # Data 
@@ -99,7 +102,9 @@ reactable(fee_changes, defaultPageSize = 15)
 
 fee_changes$TIMESTAMP_posixct <- as.POSIXct(fee_changes$TIMESTAMP, tz = "UTC")
 fee_changes$TIMESTAMP_date <- as.Date(fee_changes$TIMESTAMP, tz = "UTC")
-
+fee_changes[16, ] <- fee_changes[15, ]
+# to fill out plots add a filler date 
+fee_changes[16, c("FROM_VALUE", "TIMESTAMP_date", "day")] <- c(0.0300, "2023-01-13", "2023-01-13")
 
 # for better plotting
 parameter_changes$TIMESTAMP_posixct <- as.POSIXct(parameter_changes$TIMESTAMP, tz = "UTC")
@@ -879,29 +884,224 @@ plot_ly() %>%
 
 ## Implied Revenue over time
 
-- Implied Revenue = DAI Outstanding * Stability Fee 
+- Implied Revenue = (Daily DAI Outstanding * Stability Fee)/365
 
 ```{r}
+fee_changes$day <- as.Date(fee_changes$TIMESTAMP, tz = 'UTC')
+dai_out_with_fee <- merge(dai_outstanding,
+      fee_changes[, c("day", "TO_VALUE")],
+      by = "day", all.x = TRUE, all.y = TRUE)
 
+dai_out_with_fee$TO_VALUE <- zoo::na.locf(dai_out_with_fee$TO_VALUE)
+
+dai_out_with_fee <- dai_out_with_fee %>% 
+  mutate(implied_revenue = (dai_outstanding*TO_VALUE)/365)
 
 ```
 
+
+```{r}
+
+plot_ly() %>% add_trace(data = dai_out_with_fee, x = ~day, y = ~implied_revenue, 
+            type = "scatter", mode = "markers+lines",
+            name = "Implied Revenue") %>% 
+   layout(xaxis = list(title = "Date"),
+    yaxis = list(title = "DAI Revenue"),
+     title = list(text = "ETHB Daily Implied Revenue in DAI", y = 0.975)) %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*1000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv'))
+
+```
+
+## Implied Revenue vs Stability Fee 
+
+Separating pre and post July 2021 to remove the confounding effect of the 
+vault being maxed out in its first 6 months despire rapidly increasing stability fees.
+
+```{r}
+plot_ly() %>% 
+  add_trace(data = dai_out_with_fee[dai_out_with_fee$day >= '2021-07-01', ], 
+        x = ~TO_VALUE*100, y = ~implied_revenue, name = "After July 2021",
+        type = 'box',  boxpoints = "all", jitter = 0.1, pointpos = -1.8) %>% 
+  add_trace(data = dai_out_with_fee[dai_out_with_fee$day < '2021-07-01', ], 
+        x = ~TO_VALUE*100, y = ~implied_revenue, name = "Before July 2021",
+        type = 'box',  boxpoints = "all", jitter = 0.1, pointpos = 1.8) %>% 
+  layout(
+    xaxis = list(title = "Stability Fee %"),
+    yaxis = list(title = "Daily Implied Revenue (# DAI)"),
+    title = list(text = "ETHB: Implied Revenue vs Stability Fee \n First 6 months separated",
+                 y = 0.975)
+  )
+
+```
 
 # Macro Factors 
 
 ## ETH Price & RSI (Time Level)
 
-## ETH Gas (weighted avg gwei)
+Taking daily ETH price data from Coingecko. 
+
+```{r}
+eth_price <- read.csv("coingecko_ethusd_price.csv", row.names = NULL)
+eth_price$RSI <- RSI(eth_price$price, n = 14)
+eth_price$day <- as.Date(eth_price$snapped_at, tz = 'utc')
+
+
+# left join 
+dai_out_fee_price <- merge(
+  dai_out_with_fee, eth_price[, c("day","price","RSI")],
+  all.x = TRUE, all.y = FALSE, by = "day")
+
+dai_out_fee_price <- dai_out_fee_price %>% mutate(
+  rsi_status = ifelse(RSI >= 70, "Overbought", ifelse(RSI <= 30, "Oversold", "in-between"))
+)
+
+```
+
+```{r}
+plot_ly() %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~price, name = "ETH Price",
+            type = "scatter", mode = "markers+lines",
+             text = paste('Date: ', dai_out_fee_price$day,
+                         '<br>Price: ', dai_out_fee_price$price,
+                         '<br>RSI: ', floor(dai_out_fee_price$RSI)),
+            hoverinfo = 'text') %>% 
+  add_trace(x = ~day, y = ~floor(RSI)*10, mode = "lines", name = "RSI (scaled)") %>% 
+  add_trace(data = dai_out_fee_price[dai_out_fee_price$RSI >= 70, ],
+            x = ~day, y = ~floor(RSI)*10, type = "scatter", mode = "markers", name = "Overbought") %>% 
+  add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
+            x = ~day, y = ~floor(RSI)*10, type = "scatter", mode = "markers", name = "Oversold")
+  
+
+```
 
 # Metrics vs Factors 
 
 ## DAI outstanding versus ETH Price
 
+```{r}
+
+dai_ethprice_correlation <- cor(dai_out_fee_price$dai_outstanding, dai_out_fee_price$price)
+
+plot_ly() %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~dai_outstanding, 
+            type = "scatter", mode = "markers+lines", name = "Dai from ETHB") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of DAI"), 
+    title = list(text = paste0("DAI Outstanding & ETH Price \n",
+                               "Correlation: ", 
+                               round(dai_ethprice_correlation, 3)), y = 0.975)) %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*10e6,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~price*10000, name = "ETH Price (scaled)",
+            type = "scatter", mode = "lines",
+             text = paste('Date: ', dai_out_fee_price$day,
+                         '<br>Price: ', dai_out_fee_price$price,
+                         '<br>RSI: ', floor(dai_out_fee_price$RSI)),
+            hoverinfo = 'text')
+
+```
+
 ## DAI outstanding versus ETH RSI 
+
+```{r}
+dai_ethrsi_correlation <- cor(dai_out_fee_price$dai_outstanding, dai_out_fee_price$RSI)
+plot_ly() %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~dai_outstanding, 
+            type = "scatter", mode = "markers+lines", name = "Dai from ETHB") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "# of DAI"), 
+    title = list(text = paste0("DAI Outstanding & ETH RSI \n",
+                               "Correlation: ", 
+                               round(dai_ethrsi_correlation, 3)), y = 0.975)) %>% 
+  add_trace(x = ~day, y = ~floor(RSI)*1e6, mode = "lines", name = "RSI (scaled)") %>% 
+  add_trace(data = dai_out_fee_price[dai_out_fee_price$RSI >= 70, ],
+            x = ~day, y = ~floor(RSI)*1e6, type = "scatter", mode = "markers", name = "Overbought") %>% 
+  add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
+            x = ~day, y = ~floor(RSI)*1e6, type = "scatter", mode = "markers", name = "Oversold")
+```
 
 ## Implied Revenue versus ETH Price
 
+```{r}
+rev_ethprice_correlation <- cor(dai_out_fee_price$implied_revenue, dai_out_fee_price$price)
+
+plot_ly() %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~implied_revenue, 
+            type = "scatter", mode = "markers+lines", name = "Dai from ETHB") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Daily Implied Revenue (# DAI)"), 
+    title = list(text = paste0("Implied Revenue & ETH Price \n",
+                               "Correlation: ", 
+                               round(rev_ethprice_correlation, 3)), y = 0.975)) %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*1000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~price, name = "ETH Price (scaled)",
+            type = "scatter", mode = "lines",
+             text = paste('Date: ', dai_out_fee_price$day,
+                         '<br>Price: ', dai_out_fee_price$price,
+                         '<br>RSI: ', floor(dai_out_fee_price$RSI)),
+            hoverinfo = 'text')
+
+```
+
 ## Implied Revenue versus ETH RSI
+
+```{r}
+
+rev_ethrsi_correlation <- cor(dai_out_fee_price$implied_revenue, dai_out_fee_price$RSI)
+
+
+plot_ly() %>% 
+  add_trace(data = dai_out_fee_price, x = ~day, y = ~implied_revenue, 
+            type = "scatter", mode = "markers+lines", name = "Dai from ETHB") %>% 
+   layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Daily Implied Revenue (# DAI)"), 
+    title = list(text = paste0("Implied Revenue & ETH Price \n",
+                               "Correlation: ", 
+                               round(rev_ethrsi_correlation, 3)), y = 0.975)) %>% 
+  add_trace(x = fee_changes$TIMESTAMP_date, 
+            y = ~fee_changes$TO_VALUE*100*1000,
+            text = paste('Date: ', fee_changes$TIMESTAMP_date,
+                         '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
+            hoverinfo = 'text',
+            name = 'Stability Fee % (scaled)', 
+            type= "scatter",
+            mode = "markers+lines", 
+            line = list(shape = 'hv')) %>% 
+  add_trace(x = ~day, y = ~floor(RSI)*1e2, mode = "lines", name = "RSI (scaled)") %>% 
+  add_trace(data = dai_out_fee_price[dai_out_fee_price$RSI >= 70, ],
+            x = ~day, y = ~floor(RSI)*1e2, type = "scatter", mode = "markers", name = "Overbought") %>% 
+  add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
+            x = ~day, y = ~floor(RSI)*1e2, type = "scatter", mode = "markers", name = "Oversold")
+
+
+```
 
 # Next Steps 
 
