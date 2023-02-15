@@ -202,11 +202,11 @@ plot_ly() %>% add_trace(
     yaxis = list(title = "# of Deposits"), 
     title = list(text = "Daily ETH-B Vaults Deposits", y = 0.975)) %>% 
     add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*100,
+            y = ~fee_changes$TO_VALUE*100*10,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))
@@ -257,11 +257,11 @@ plot_ly() %>% add_trace(
   type = "bar",
   name = "# Deposits") %>% 
   add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*1000,
+            y = ~fee_changes$TO_VALUE*1000*10,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))  %>% 
@@ -294,7 +294,7 @@ plot_ly() %>% add_trace(
     yaxis = list(title = "# ETH Deposited"), 
     title = list(text = "Monthly ETH-B Vaults ETH Deposited", y = 0.975)) %>% 
     add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*100000,
+            y = ~fee_changes$TO_VALUE*1000000,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
@@ -345,11 +345,11 @@ plot_ly() %>% add_trace(
     yaxis = list(title = "# of Mints"), 
     title = list(text = "Daily ETH-B Vault # of Mints", y = 0.975)) %>% 
     add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*100,
+            y = ~fee_changes$TO_VALUE*1000,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))
@@ -488,11 +488,11 @@ plot_ly() %>% add_trace(
     yaxis = list(title = "# of Repays"), 
     title = list(text = "Daily ETH-B Vault # of Repays", y = 0.975)) %>% 
     add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*100,
+            y = ~fee_changes$TO_VALUE*1000,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))
@@ -548,7 +548,7 @@ plot_ly() %>% add_trace(
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))  %>% 
@@ -604,7 +604,7 @@ daily_withdraws$day <- as.Date(daily_withdraws$BLOCK_TIMESTAMP, tz = 'UTC')
 
 daily_withdraws <- daily_withdraws %>% group_by(day) %>% 
   summarise(num_withdraws = n(), 
-            sum_eth = sum(as.numeric(WITHDRAWN_AMOUNT_ADJ)))
+            sum_eth = sum(abs(as.numeric(WITHDRAWN_AMOUNT_ADJ))))
 
 
 monthly_withdraws <- daily_withdraws %>% 
@@ -634,11 +634,11 @@ plot_ly() %>% add_trace(
     yaxis = list(title = "# of Withdrawals"), 
     title = list(text = "Daily ETH-B Vaults Withdrawals", y = 0.975)) %>% 
     add_trace(x = fee_changes$TIMESTAMP_date, 
-            y = ~fee_changes$TO_VALUE*100,
+            y = ~fee_changes$TO_VALUE*1000,
             text = paste('Date: ', fee_changes$TIMESTAMP_date,
                          '<br>Fee: ', 100*fee_changes$TO_VALUE,"%"),
             hoverinfo = 'text',
-            name = 'Stability Fee %', 
+            name = 'Stability Fee % (scaled)', 
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv'))
@@ -744,7 +744,6 @@ plot_ly() %>% add_trace(
 daily_liqs <- ethb_vault_liquidations[ , 
                                        c("BLOCK_TIMESTAMP",
                                          "VAULT_NUMBER",
-                                         "DEBT_TO_COVER_AMOUNT",
                                          "COLLATERAL_LIQUIDATED_AMOUNT",
                                          "DAI_REPAYED_AMOUNT")]
 
@@ -753,7 +752,6 @@ daily_liqs$day <- as.Date(daily_liqs$BLOCK_TIMESTAMP, tz = 'UTC')
 daily_liqs <- daily_liqs %>% group_by(day) %>% 
   summarise(num_liqs = n(), 
             sum_eth = sum(as.numeric(COLLATERAL_LIQUIDATED_AMOUNT)),
-            sum_debt = sum(as.numeric(DEBT_TO_COVER_AMOUNT)),
             sum_dai = sum(as.numeric(DAI_REPAYED_AMOUNT)),
             )
 
@@ -770,7 +768,7 @@ monthly_liqs <- daily_liqs %>%
 
 Liquidations will not be thoroughly analyzed as the vast majority of liquidations are of a 
 single large vault: # 21348, which had 363 distinct liquidations in chunks. But they 
-will be included as ETH withdrawn and DAI debt covered for calculating DAI outstanding.
+will be included as ETH withdrawn and DAI repaid for calculating DAI outstanding.
 
 # Key Metrics 
 
@@ -832,7 +830,7 @@ mint_repay <- merge(daily_mints[, c("day","dai_minted")],
       daily_repays[, c("day","dai_repaid")], by = 'day', 
       all.x = TRUE, all.y = TRUE)
 
-dai_outstanding <- merge(mint_repay,  daily_liqs[, c("day", "sum_debt")], 
+dai_outstanding <- merge(mint_repay,  daily_liqs[, c("day", "sum_dai")], 
                          by = "day", all.x = TRUE, all.y = TRUE)
 
 
@@ -842,7 +840,7 @@ dai_outstanding[is.na(dai_outstanding)] <- 0
 # Dai Delta = change in dai outstanding attributable to vault
 # Dai Outstanding = cumulative sum of deltas 
 dai_outstanding <- dai_outstanding %>% 
-  mutate(dai_delta = dai_minted - dai_repaid - sum_debt) %>% 
+  mutate(dai_delta = dai_minted - dai_repaid - sum_dai) %>% 
   mutate(dai_outstanding = cumsum(dai_delta))
   
 ```
@@ -973,13 +971,17 @@ plot_ly() %>%
                          '<br>Price: ', dai_out_fee_price$price,
                          '<br>RSI: ', floor(dai_out_fee_price$RSI)),
             hoverinfo = 'text') %>% 
+  layout(
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "$ Price (USD)"),
+    title = list(text = "ETH Price & Relative Strength Index (n=14)", y = 0.975)
+  ) %>%
   add_trace(x = ~day, y = ~floor(RSI)*10, mode = "lines", name = "RSI (scaled)") %>% 
   add_trace(data = dai_out_fee_price[dai_out_fee_price$RSI >= 70, ],
             x = ~day, y = ~floor(RSI)*10, type = "scatter", mode = "markers", name = "Overbought") %>% 
   add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
-            x = ~day, y = ~floor(RSI)*10, type = "scatter", mode = "markers", name = "Oversold")
+            x = ~day, y = ~floor(RSI)*10, type = "scatter", mode = "markers", name = "Oversold")  
   
-
 ```
 
 # Metrics vs Factors 
@@ -1094,7 +1096,7 @@ plot_ly() %>%
             type= "scatter",
             mode = "markers+lines", 
             line = list(shape = 'hv')) %>% 
-  add_trace(x = ~day, y = ~floor(RSI)*1e2, mode = "lines", name = "RSI (scaled)") %>% 
+  add_trace(x = ~day, y = ~floor(RSI)*1e2, type = "scatter", mode = "lines", name = "RSI (scaled)") %>% 
   add_trace(data = dai_out_fee_price[dai_out_fee_price$RSI >= 70, ],
             x = ~day, y = ~floor(RSI)*1e2, type = "scatter", mode = "markers", name = "Overbought") %>% 
   add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
