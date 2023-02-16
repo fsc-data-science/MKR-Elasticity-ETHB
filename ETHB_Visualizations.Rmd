@@ -18,7 +18,6 @@ editor_options:
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
-
 # Intro 
 
 FlipsideCrypto’s Research is open source. Check out all the code for this report [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/) on github.
@@ -43,9 +42,8 @@ Key data includes:
 
 - known parameter changes to the ETH-B vault: 
     - JUG.ilks.duty: vault stability fee
-    - DOG.ilks.chop: liquidation fee
-    - DOG.ilks.hole: liquidation parameter
-    - VAT.ilks.dust:	Minimum vault size for # of DAI able to be minted
+    - VAT.ilks.line: The Debt Ceiling of a vault
+    - DC-IAM.ilks.line: The Debt Limit of a vault 
 - Vault Interactions
     - Vaults created with ETH-B as the Collateral type (`ilk`)
     - ETH Deposits to ETH-B Vaults
