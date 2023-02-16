@@ -1,6 +1,6 @@
 ---
 title: "MKR-ETHB-Visualizations"
-author: "Charliemarketplace"
+author: "Charliemarketplace // Data Science @FlipsideCrypto"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -21,9 +21,11 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 
 # Intro 
 
+FlipsideCrypto’s Research is open source. Check out all the code for this report [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/) on github.
+
 This report details the exploratory data analysis of Key ETH-B Collateral Type 
 Vault interactions by users of the Maker Protocol used to inspire & review the 
-final MKR ETH-B Elasticity report.
+final MKR ETH-B Elasticity report. 
 
 ```{r, message=FALSE, warning=FALSE}
 library(reactable)
@@ -53,7 +55,7 @@ Key data includes:
     - DAI/ETH Liquidations of ETH-B Vaults
 - Macro Factors
     - Changes to ETH's Price, specifically its Relative Strength Index (RSI)
-    - Demand for ETH's blockspace, i.e., gas (in gwei).
+    - The impact of these Macro factors on DAI Outstanding and Daily Implied Revenue
 
 
 ```{r}
@@ -1102,6 +1104,8 @@ plot_ly() %>%
   add_trace(data = dai_out_fee_price %>% filter(RSI <= 30),
             x = ~day, y = ~floor(RSI)*1e2, type = "scatter", mode = "markers", name = "Oversold")
 
+# save final data 
+write.csv(dai_out_fee_price, file = "ethb_dai_fulldata.csv", row.names = FALSE)
 
 ```
 
