@@ -2,10 +2,10 @@
 
 An (in progress) Elasticity Analysis of MKR ETH-B "ETH Low Ratio".
 
-The project plan is available for review [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/blob/main/MKR%20Elasticity%20ETHB%20-%20Project%20Plan.md).
+The original project plan is available for review [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/blob/main/MKR%20Elasticity%20ETHB%20-%20Project%20Plan.md).
 
 The broad goal is to develop a methodology for assessing the Elasticity of on-chain interactions with contracts, using MakerDAO's 
-ETH Vault B ("ETH Low Ratio") as the introductory Example.
+ETH Vault B ("ETH Low Ratio") as the introductory example.
 
 # Research Plan 
 
@@ -13,8 +13,6 @@ To summarize the project plan, we will develop a research piece integrating and 
 
 - The market reacts to changes in ETHB's stability fee. 
   - Participation in ETH B Vaults (Dai minted from new and existing vaults) is reactive to changes in the cost of minting Dai from those vaults (i.e., the stability fee).
-
-- When ETH GAS is more expensive, people generate *less* DAI from the ETH B, all else equal.
 
 - When ETH's USD price is short-term "over-priced" (went up disproportionately quicky fast), ETH B use declines. 
   - People go to the cheaper vaults and/or withdraw or reduce leverage to sell high and rebuy low.
@@ -52,6 +50,6 @@ To replicate this analysis please do the following:
 3.  Open the `MKR-Elasticity-ETHB` R Project file in your R IDE (we recommend, RStudio).
 4.  Confirm you have renv installed.
 5.  Restore the R environment using `renv::restore()` while in the `MKR-Elasticity-ETHB` R Project.
-6.  You can now run the variety of analysis files (TBD).
+6.  You can now run the `ETHB-Report.Rmd` and `ETHB_Visualizations.Rmd` files. 
 
 If any errors arise, double check you have saved your API key in the expected file name and format.
