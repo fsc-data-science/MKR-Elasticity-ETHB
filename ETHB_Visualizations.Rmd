@@ -24,7 +24,7 @@ FlipsideCrypto’s Research is open source. Check out all the code for this repo
 
 This report details the exploratory data analysis of Key ETH-B Collateral Type 
 Vault interactions by users of the Maker Protocol used to inspire & review the 
-final MKR ETH-B Elasticity report. 
+final [MKR ETH-B Elasticity report](https://science.flipsidecrypto.xyz/mkr_ethb_report/). 
 
 ```{r, message=FALSE, warning=FALSE}
 library(reactable)
