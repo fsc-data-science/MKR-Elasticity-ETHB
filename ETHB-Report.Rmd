@@ -255,7 +255,7 @@ plot_ly() %>%
 
 ## DAI Outstanding Nov '21 Spike
 
-DAI Outstanding has a noticeably high 0.491 correlation with ETH's Price. What is 
+DAI Outstanding has a noticeably high 0.494 correlation with ETH's Price. What is 
 most interesting is the two major peaks in DAI Oustanding are the November 2021 peak
 of the bull market and the June 2022 bottom of the market (where ETH fell to <$1,000).
 
@@ -305,7 +305,7 @@ buy ETH, deposit that ETH and repeat the process. On June 19, 2022 ETH was at it
 223,000,000 DAI Outstanding from this Vault. On July 8, 2022, with ETH's price recovering to 
 $1,240 the DAI Outstanding was down nearly 90% to 23,280,000 DAI.
 
-The smaller but still noticeable (-0.21) negative correlation with RSI indicates that DAI generation 
+The smaller but still noticeable (-0.225) negative correlation with RSI indicates that DAI generation 
 can occur even when ETH's price is low, (i.e., if it is oversold quickly).
 
 This again supports the perspective that users are not elastic to the stability fee, they are 
