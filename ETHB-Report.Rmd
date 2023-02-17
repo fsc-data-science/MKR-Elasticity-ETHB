@@ -51,7 +51,7 @@ FlipsideCrypto’s Research is open source. Check out all the code for this repo
 
 # Intro 
 
-This report takes visualizations from the [maker_ethb_viz](https://science.flipsidecrypto.xyz/maker_ethb_viz/) exploratory data analysis
+This report takes visualizations from the [maker_ethb_viz](https://science.flipsidecrypto.xyz/mkr_ethb_viz/) exploratory data analysis
 and adds context and recommendations for Maker's risk team.
 
 # Key Points 
