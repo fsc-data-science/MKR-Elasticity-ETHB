@@ -22,10 +22,11 @@ To summarize the project plan, we will develop a research piece integrating and 
 Overall, we'd like to adjust for available confounding factors and develop an Elasticity Curve that is useful to the MakerDAO ETH B committee that studies the market to adjust the vault parameters to support MakerDAO's efficiency and revenue growth.
 
 # Outputs
-
-Interactive Report: https://science.flipsidecrypto.xyz/mkr_ethb_report/
-Exploratory Visualizations: https://science.flipsidecrypto.xyz/mkr_ethb_viz/
-Github w/ Queries & Data: https://github.com/fsc-data-science/MKR-Elasticity-ETHB
+|Item|Link|
+|-----|-----|
+Interactive Report| https://science.flipsidecrypto.xyz/mkr_ethb_report/ |
+Exploratory Visualizations| https://science.flipsidecrypto.xyz/mkr_ethb_viz/ |
+Github w/ Queries & Data| https://github.com/fsc-data-science/MKR-Elasticity-ETHB |
 
 # Reproduce Analysis
 
