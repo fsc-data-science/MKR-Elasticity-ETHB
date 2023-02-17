@@ -1,8 +1,10 @@
 # MKR-Elasticity-ETHB
 
-An (in progress) Elasticity Analysis of MKR ETH-B "ETH Low Ratio".
+An  Elasticity Analysis of MKR ETH-B "ETH Low Ratio".
 
-The original project plan is available for review [here](https://github.com/fsc-data-science/MKR-Elasticity-ETHB/blob/main/MKR%20Elasticity%20ETHB%20-%20Project%20Plan.md).
+For a deeper dive into the context, you can check out the report here on our [research site](https://science.flipsidecrypto.xyz/mkr_ethb_report).
+
+If you aren't interested in code and want the shortest summary of the situation, you can check out the email sized version of this research on our research [beehiiv](https://flipsidecrypto.beehiiv.com) once it is complete. For now, you can subscribe to get (summaries of) the best crypto research direct to your inbox.
 
 The broad goal is to develop a methodology for assessing the Elasticity of on-chain interactions with contracts, using MakerDAO's 
 ETH Vault B ("ETH Low Ratio") as the introductory example.
@@ -21,13 +23,14 @@ Overall, we'd like to adjust for available confounding factors and develop an El
 
 # Outputs
 
-For a deeper dive into the context, you can check out the report here on our [research site](https://science.flipsidecrypto.xyz/mkr_ethb_report).
-
-If you aren't interested in code and want the shortest summary of the situation, you can check out the email sized version of this research on our research [beehiiv](https://flipsidecrypto.beehiiv.com) once it is complete. For now, you can subscribe to get (summaries of) the best crypto research direct to your inbox. for past and parallel research pieces.
+Interactive Report: https://science.flipsidecrypto.xyz/mkr_ethb_report/
+Exploratory Visualizations: https://science.flipsidecrypto.xyz/mkr_ethb_viz/
+Github w/ Queries & Data: https://github.com/fsc-data-science/MKR-Elasticity-ETHB
 
 # Reproduce Analysis
 
-All analysis is reproducible using the R programming language. You'll need (1) an shroomDK API key to copy our SQL queries and extract data from the [FlipsideCrypto data app](https://next.flipsidecrypto.xyz/); and (2) renv to get the exact package versions we used.
+All analysis is reproducible using the R programming language. The exact queries for the timestamped data pull are available in the `queries` folder as .sql files.
+Alternatively, you can use a shroomDK API key to copy our SQL queries and extract data from the [FlipsideCrypto data app](https://next.flipsidecrypto.xyz/); and (2) renv to get the exact package versions we used.
 
 ## shroomDK
 
