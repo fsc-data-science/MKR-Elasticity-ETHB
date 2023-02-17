@@ -21,7 +21,7 @@ Overall, we'd like to adjust for available confounding factors and develop an El
 
 # Outputs
 
-For a deeper dive into the context, you can check out the report on our [research site](https://science.flipsidecrypto.xyz/research/) once it is completed. (URL TBD).
+For a deeper dive into the context, you can check out the report here on our [research site](https://science.flipsidecrypto.xyz/mkr_ethb_report).
 
 If you aren't interested in code and want the shortest summary of the situation, you can check out the email sized version of this research on our research [beehiiv](https://flipsidecrypto.beehiiv.com) once it is complete. For now, you can subscribe to get (summaries of) the best crypto research direct to your inbox. for past and parallel research pieces.
 
