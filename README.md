@@ -27,6 +27,7 @@ Overall, we'd like to adjust for available confounding factors and develop an El
 Interactive Report| https://science.flipsidecrypto.xyz/mkr_ethb_report/ |
 Exploratory Visualizations| https://science.flipsidecrypto.xyz/mkr_ethb_viz/ |
 Github w/ Queries & Data| https://github.com/fsc-data-science/MKR-Elasticity-ETHB |
+Maker Forum Post| [Maker Proposal](https://forum.makerdao.com/t/proposal-to-include-deliberate-stability-fee-experiments-in-the-s-l-scope-mip103/19886)|
 
 # Reproduce Analysis
 
